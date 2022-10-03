@@ -1,3 +1,2 @@
 # plugins
-name;
-audit;
+list of public Hoop plugins
