@@ -10,7 +10,7 @@ This repository is the starting point for a vendor: the SDK install commands, on
 |---|---|---|
 | Rust | `cargo add hoop-codec` | `rustup target add wasm32-unknown-unknown` |
 | Go | `go get github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo@v0.1.0` | [TinyGo](https://tinygo.org) 0.43 or later |
-| C / C++ | `curl -fsSLO https://github.com/hoophq/hoop/releases/download/hoop-codec-v0.1.0/hoop_codec.h` | LLVM 15 or later with the wasm32 target and `wasm-ld` (`brew install llvm lld` on macOS) |
+| C / C++ | `curl -fsSLO https://raw.githubusercontent.com/hoophq/plugins/main/sdk/c/hoop_codec.h` (this repository, `sdk/c/`) | LLVM 15 or later with the wasm32 target and `wasm-ld` (`brew install llvm lld` on macOS) |
 
 None of them depends on anything private. The SDK source and the ABI live in the hoop repository under `sidecar/codec/wasm`; the versions above are what the release workflow published.
 
