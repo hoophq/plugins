@@ -7,7 +7,7 @@
 # Clients connect to 127.0.0.1:21211; memcached listens on 11211.
 plugins:
   - protocol: x-memcache
-    module: ./dist/memcache.wasm
+    module: ./memcache.wasm
 
 listeners:
   - name: cache

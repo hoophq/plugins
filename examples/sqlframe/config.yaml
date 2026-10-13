@@ -3,7 +3,7 @@
 #   hoop start sidecar --config config.yaml --validate
 plugins:
   - protocol: x-sqlframe
-    module: ./dist/sqlframe.wasm
+    module: ./sqlframe.wasm
 
 listeners:
   - name: sqlframe

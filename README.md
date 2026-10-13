@@ -2,44 +2,45 @@
 
 Codec plug-ins for the [hoop Sidecar](https://hoop.dev/docs/setup/configuration/hoop-sidecar/plugins/overview). A plug-in is one WebAssembly module that decodes one wire protocol the Sidecar does not ship. The Sidecar loads it from its config file, hands it the bytes of each connection, and evaluates the statements it returns with the same guardrails, masking, audit and AI analysis a built-in protocol gets.
 
-This repository holds worked examples, one per language, each a complete plug-in with fixtures and a config you can run.
+This repository is the starting point for a vendor: the SDK install commands, one worked example per language, and the config that runs each one.
+
+## Install an SDK
+
+| Language | Install | Build target |
+|---|---|---|
+| Rust | `cargo add hoop-codec` | `rustup target add wasm32-unknown-unknown` |
+| Go | `go get github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo@v0.1.0` | [TinyGo](https://tinygo.org) 0.43 or later |
+| C / C++ | `curl -fsSLO https://github.com/hoophq/hoop/releases/download/hoop-codec-v0.1.0/hoop_codec.h` | LLVM 15 or later with the wasm32 target and `wasm-ld` (`brew install llvm lld` on macOS) |
+
+None of them depends on anything private. The SDK source and the ABI live in the hoop repository under `sidecar/codec/wasm`; the versions above are what the release workflow published.
 
 ## Examples
 
 | Directory | Protocol | Language | Shows |
 |---|---|---|---|
-| `examples/rust/resp` | Redis RESP2 | Rust (`hoop-codec` crate) | arrays and inline commands, native deny frame, masking of bulk replies, credential lifting from `AUTH` |
-| `examples/go/memcache` | memcached text | Go (TinyGo) | line protocol with data blocks, native deny frame, custom analyzer content |
-| `examples/cpp/sqlframe` | a binary framing that carries SQL | C++17 freestanding over `hoop_codec.h` | the host SQL classifier through `analyze_sql` and `split_sql`, a stream filter for keepalive padding |
+| `examples/resp` | Redis RESP2 | Rust | arrays and inline commands, native deny frame, masking of bulk replies, credential lifting from `AUTH` |
+| `examples/memcache` | memcached text | Go (TinyGo) | a line protocol with data blocks, native deny frame, custom analyzer content |
+| `examples/sqlframe` | a binary framing that carries SQL | C++17 freestanding | the host SQL classifier through `analyze_sql` and `split_sql`, a stream filter for keepalive padding |
 
-Each example directory carries:
+Each directory carries a `README.md` (the protocol, the build, which rule types fence it), `fixtures.json` (the scripts the conformance tool replays), `build.sh`, and a `config.yaml` that loads the module and fences one command.
 
-- `README.md`: the protocol, the build, the test, and which rule types can fence it
-- `fixtures.json`: scripts the conformance tool replays
-- `build.sh`: produces `dist/<name>.wasm`
-- `config.yaml`: a Sidecar config that loads the module and fences one command
+A workflow in the hoop repository copies these from `sidecar/codec/wasm/examples` on every SDK release, with the dependencies pointed at the published versions. Edit them there; a change here is overwritten on the next release.
 
-## Build
-
-The SDKs and the ABI live in the hoop repository under `sidecar/codec/wasm`. Every build script reads `HOOP_SIDECAR`, the path to a checkout of that repository, and defaults to `../../../../hoop` relative to the example.
-
-| Language | Toolchain |
-|---|---|
-| Rust | `rustup target add wasm32-unknown-unknown` |
-| Go | [TinyGo](https://tinygo.org) 0.33 or later |
-| C++ | LLVM 15 or later with the wasm32 target and `wasm-ld` (`brew install llvm lld` on macOS) |
-
-## Test
-
-`hoop start sidecar --codec-test` proves a module against the ABI, then replays the example's fixtures:
+## Write your own
 
 ```sh
-cd examples/rust/resp
+cp -r examples/resp my-plugin && cd my-plugin
+# edit src/lib.rs: manifest(), the frame parser, the operation table
+# edit fixtures.json: captured frames and the statements you expect
+cargo test
 ./build.sh
-hoop start sidecar --codec-test dist/resp.wasm fixtures.json
+hoop start sidecar --codec-test dist/my-plugin.wasm fixtures.json
+hoop start sidecar --config config.yaml --validate
 ```
 
-All eight checks must pass before a module goes near traffic. Check 7 replays each script one byte at a time and is the one that catches most decoders.
+All eight checks must pass before a module goes near traffic. Check 7 replays each script one byte at a time through the Sidecar's reassembly and is the one that catches most decoders; it names the failing step.
+
+The author guide is at [Writing a Plug-in](https://hoop.dev/docs/setup/configuration/hoop-sidecar/plugins/writing). The [ABI reference](https://hoop.dev/docs/setup/configuration/hoop-sidecar/plugins/abi) is the contract for a language without an SDK.
 
 ## Run
 
@@ -49,10 +50,6 @@ hoop start sidecar --config config.yaml
 ```
 
 The validate report names the loaded module, its version, its digest and its capabilities. Pin `sha256` in the `plugins` entry before you serve a module from a URL.
-
-## Writing your own
-
-Copy the example closest to your protocol. The author guide is at `documentation/setup/configuration/hoop-sidecar/plugins/writing`, and the ABI reference for a language without an SDK at `.../plugins/abi`.
 
 ## License
 

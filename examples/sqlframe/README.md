@@ -1,6 +1,6 @@
 # x-sqlframe: SQL in a binary frame, in freestanding C++
 
-A made-up protocol that wraps SQL text in a fixed binary header. The plug-in shows two things a C or C++ author needs and no SDK provides: the host SQL classifier through `hoop_split_sql` and `hoop_analyze_sql`, and a `filter` that removes keepalive padding before the decoder sees it. The module is one C++17 file over `sidecar/codec/wasm/sdk/c/hoop_codec.h`: no libc, no STL, no exceptions, no RTTI.
+A made-up protocol that wraps SQL text in a fixed binary header. The plug-in shows two things a C or C++ author needs and no SDK provides: the host SQL classifier through `hoop_split_sql` and `hoop_analyze_sql`, and a `filter` that removes keepalive padding before the decoder sees it. The module is one C++17 file over `../../sdk/c/hoop_codec.h`: no libc, no STL, no exceptions, no RTTI.
 
 ## Protocol
 
@@ -67,11 +67,12 @@ export CC=/opt/homebrew/opt/llvm/bin/clang++
 Apple's clang has no wasm target, so `CC` must name the Homebrew one. If `wasm-ld` is not on `PATH`, set `WASM_LD_DIR` to the directory that holds it.
 
 ```sh
-export HOOP_SIDECAR=/path/to/hoop   # default ../../../../hoop
-./build.sh                          # writes dist/sqlframe.wasm
+./build.sh                          # writes dist/sqlframe.wasm and copies it to sqlframe.wasm
 ```
 
-The flags are `--target=wasm32-unknown-unknown -std=c++17 -nostdlib -fno-builtin -fno-exceptions -fno-rtti -O2 -fuse-ld=lld -Wl,--no-entry -Wl,--strip-all`. `-fno-builtin` keeps the optimizer from turning a copy loop into a `memcpy` call; the source defines `memcpy` and `memset` for the aggregate copies the compiler emits on its own.
+`build.sh` includes `hoop_codec.h` from `../../sdk/c` inside the hoop repository and from this directory in the copy under `hoophq/plugins`, where the release workflow places the header beside the source. The flags are `--target=wasm32-unknown-unknown -std=c++17 -nostdlib -fno-builtin -fno-exceptions -fno-rtti -O2 -fuse-ld=lld -Wl,--no-entry -Wl,--strip-all`. `-fno-builtin` keeps the optimizer from turning a copy loop into a `memcpy` call; the source defines `memcpy` and `memset` for the aggregate copies the compiler emits on its own.
+
+`sqlframe.wasm` is checked in beside `fixtures.json`, so the conformance run below needs no clang or lld. The plug-in workflow rebuilds it on every change under this directory or the SDK and fails when the digest differs, so a source change ships with a rebuilt artifact.
 
 ### How the source is laid out
 
@@ -83,8 +84,10 @@ The flags are `--target=wasm32-unknown-unknown -std=c++17 -nostdlib -fno-builtin
 ## Test
 
 ```sh
-hoop start sidecar --codec-test dist/sqlframe.wasm fixtures.json
+hoop start sidecar --codec-test sqlframe.wasm fixtures.json
 ```
+
+Inside the hoop repository `make test-sidecar-plugins` runs the same check for every SDK and example with a freshly built `hoop-inspect`.
 
 `fixtures.json` covers a single query, a two-statement query split by the host, PREPARE, PING and CLOSE, the option in metadata, the three server frames, two frames in one read, a partial frame, padding before a frame in each direction, and four malformed inputs. All eight checks pass; check 7 replays each script one byte at a time, which is what proves the filter cursor and the partial-frame rule.
 
@@ -98,7 +101,7 @@ hoop start sidecar --config config.yaml
 ```yaml
 plugins:
   - protocol: x-sqlframe
-    module: ./dist/sqlframe.wasm
+    module: ./sqlframe.wasm
 
 listeners:
   - name: sqlframe

@@ -91,26 +91,32 @@ Values never reach the audit trail: a bulk string reports its length.
 
 ## Build
 
-Needs Rust 1.82+ and `rustup target add wasm32-unknown-unknown`. The SDK is
-a path dependency on the hoop checkout; Cargo cannot read an environment
-variable inside `path`, so `Cargo.toml` names the sibling checkout
-`../../../../hoop/sidecar/codec/wasm/sdk/rust`. `build.sh` honours
-`HOOP_SIDECAR` for a checkout elsewhere by generating a manifest under
-`target/` with that path.
+Needs Rust 1.82+ and `rustup target add wasm32-unknown-unknown`. `Cargo.toml`
+names the `hoop-codec` crate: a path dependency on `../../sdk/rust` inside the
+hoop repository, the crates.io version in the copy under `hoophq/plugins`.
 
 ```bash
-./build.sh                         # dist/resp.wasm, about 160 KB
-HOOP_SIDECAR=/src/hoop ./build.sh  # another checkout
-cargo test                         # the decoder on the host, no wasm needed
+./build.sh     # dist/resp.wasm, copied to resp.wasm; about 160 KB
+cargo test     # the decoder on the host, no wasm needed
 ```
+
+`resp.wasm` is checked in beside `fixtures.json`, so the conformance run
+below needs no Rust wasm target. The plug-in workflow rebuilds it on every
+change under this directory or the SDK and fails when the digest differs,
+so a source change ships with a rebuilt artifact.
 
 ## Test
 
 ```bash
-cd $HOOP_SIDECAR/sidecar/cmd && GOPRIVATE=github.com/hoophq/libhoop CGO_ENABLED=0 go build -o hoop-inspect .
-hoop-inspect -codec-test dist/resp.wasm fixtures.json
-hoop-inspect -validate -config config.yaml
+hoop start sidecar --codec-test resp.wasm fixtures.json
+hoop start sidecar --validate --config config.yaml
 ```
+
+Inside the hoop repository `make test-sidecar-plugins` runs the same checks
+for every SDK and example with a freshly built `hoop-inspect`.
+
+`-validate` resolves `module:` against the working directory, so run it
+from here.
 
 `fixtures.json` covers SET/GET/DEL/FLUSHALL, MULTI..EXEC and DISCARD,
 MSET and EVAL keys, AUTH, inline commands, a bulk string split across two
@@ -126,7 +132,7 @@ pass.
 ```yaml
 plugins:
   - protocol: x-resp
-    module: ./dist/resp.wasm
+    module: ./resp.wasm
 
 listeners:
   - name: cache

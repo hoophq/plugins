@@ -6,7 +6,7 @@
 #   redis-cli -p 16379
 plugins:
   - protocol: x-resp
-    module: ./dist/resp.wasm
+    module: ./resp.wasm
 
 listeners:
   - name: cache

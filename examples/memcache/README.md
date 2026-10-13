@@ -1,6 +1,6 @@
 # x-memcache: the memcached text protocol in Go (TinyGo)
 
-A hoop Sidecar codec plug-in for the [memcached text protocol](https://github.com/memcached/memcached/blob/master/doc/protocol.txt), written against the TinyGo SDK (`sidecar/codec/wasm/sdk/tinygo` in the hoop repository). It shows a line protocol with data blocks, a native deny frame, and custom content for the AI analyzer.
+A hoop Sidecar codec plug-in for the [memcached text protocol](https://github.com/memcached/memcached/blob/master/doc/protocol.txt), written against the TinyGo SDK (`../../sdk/tinygo`). It shows a line protocol with data blocks, a native deny frame, and custom content for the AI analyzer.
 
 | | |
 |---|---|
@@ -63,7 +63,7 @@ The module needs TinyGo 0.33 or later and `wasm-opt` from binaryen, which the Ti
 
 ```sh
 brew tap tinygo-org/tools && brew install tinygo
-./build.sh                       # writes dist/memcache.wasm
+./build.sh                       # writes dist/memcache.wasm and copies it to memcache.wasm
 ```
 
 `build.sh` runs:
@@ -73,13 +73,15 @@ tinygo build -o dist/memcache.wasm -target wasm-unknown -opt=z -no-debug \
   -tags hoop_deny,hoop_content .
 ```
 
-The `-tags` list and the `Capabilities` in `main.go` must name the same set: the SDK's `describe` traps at load when they differ. The SDK comes from a checkout of the hoop repository; `go.mod` points its `replace` at `../../../../hoop`, and `HOOP_SIDECAR=/path/to/hoop ./build.sh` rewrites that path into a modfile under `dist/`.
+The `-tags` list and the `Capabilities` in `main.go` must name the same set: the SDK's `describe` traps at load when they differ. `go.mod` names the SDK module `github.com/hoophq/hoop/sidecar/codec/wasm/sdk/tinygo`: through a `replace` to `../../sdk/tinygo` inside the hoop repository, by its tagged version in the copy under `hoophq/plugins`.
 
 `build.sh` refuses to run without `tinygo` in `PATH` and names the install command. A TinyGo release tarball works too; it needs `wasm-opt` in `PATH` or named by `WASMOPT`.
 
-### GOWORK=off
+`memcache.wasm` is checked in beside `fixtures.json`, so the conformance run below needs no TinyGo. The plug-in workflow rebuilds it on every change under this directory or the SDK and fails when the digest differs, so a source change ships with a rebuilt artifact.
 
-The SDK module sits outside every `go.work`, so every `go` command here needs `GOWORK=off`:
+### Go commands
+
+Inside the hoop repository this module is absent from `go.work`, like the SDK: the workspace pins a Go version TinyGo does not follow, and `make test-sidecar` filters its module walk against `go.work`, so `make test-sidecar-plugins` runs its tests instead. Under the workspace `go` refuses to work here, so every `go` command needs `GOWORK=off`. Outside the repository the plain commands work:
 
 ```sh
 GOWORK=off go vet -tags hoop_deny,hoop_content ./...
@@ -93,8 +95,10 @@ GOWORK=off go test ./...
 The conformance tool proves the built module against the ABI and the same fixtures:
 
 ```sh
-hoop start sidecar --codec-test dist/memcache.wasm fixtures.json
+hoop start sidecar --codec-test memcache.wasm fixtures.json
 ```
+
+Inside the hoop repository `make test-sidecar-plugins` runs the same check for every SDK and example with a freshly built `hoop-inspect`.
 
 ```
 check result detail
@@ -117,7 +121,7 @@ check result detail
 ```yaml
 plugins:
   - protocol: x-memcache
-    module: ./dist/memcache.wasm
+    module: ./memcache.wasm
 
 listeners:
   - name: cache
